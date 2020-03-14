@@ -4,4 +4,5 @@ RUN yum update -y
 RUN yum install httpd -y
 ENV dir /var/www/html
 COPY ./index.html $dir
+EXPOSE 80
 CMD ["/usr/sbin/httpd","-D","FOREGROUND"]

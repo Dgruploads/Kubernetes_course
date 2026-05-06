@@ -1,0 +1,7 @@
+vpc_cidr_range   = "10.0.0.0/16"
+pub_sub_cidr     = "10.0.1.0/24"
+az_name          = "us-east-1a"
+pri_sub_cidr_1   = "10.0.2.0/24"
+pri_az_name_1    = "us-east-1a"
+pri_sub_cidr_2   = "10.0.3.0/24"
+pri_az_name_2    = "us-east-1b"

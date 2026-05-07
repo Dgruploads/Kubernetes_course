@@ -1,0 +1,5 @@
+project_name       = "project-14f02ec5-38e1-49ae-9da"
+region_name        = "us-central1"
+subnet_cidr        = "10.16.0.0/16"
+pods_cidr_range    = "10.20.0.0/16"
+service_cidr_range = "10.30.0.0/16"

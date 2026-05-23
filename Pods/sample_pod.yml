@@ -1,0 +1,14 @@
+# simple-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-first-pod
+  labels:
+    app: web
+    environment: demo
+spec:
+  containers:
+    - name: web-app
+      image: nginx:1.25
+      ports:
+        - containerPort: 80

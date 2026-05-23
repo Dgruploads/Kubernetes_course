@@ -1,0 +1,60 @@
+# production-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: taskflow-api
+  labels:
+    app: taskflow
+    component: api
+    version: "1.2.0"
+spec:
+  containers:
+    - name: api
+      image: myregistry.io/taskflow-api:1.2.0
+
+      ports:
+        - name: http
+          containerPort: 3000
+          protocol: TCP
+
+      # Environment variables — inject config without baking it into the image
+      env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3000"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: taskflow-secrets
+              key: database-url
+
+      # Resource requests and limits — the Pod's "budget"
+      resources:
+        requests:
+          memory: "128Mi"   # Minimum guaranteed memory
+          cpu: "100m"       # 100 millicores = 0.1 CPU core
+        limits:
+          memory: "256Mi"   # Never use more than this
+          cpu: "500m"       # Never use more than 0.5 CPU core
+
+      # Liveness probe — is the container alive?
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: 3000
+        initialDelaySeconds: 15
+        periodSeconds: 20
+        failureThreshold: 3
+
+      # Readiness probe — is the container ready for traffic?
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 3000
+        initialDelaySeconds: 5
+        periodSeconds: 5
+        failureThreshold: 3
+
+  # Restart policy — what to do when a container exits
+  restartPolicy: Always

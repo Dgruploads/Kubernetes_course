@@ -1,0 +1,13 @@
+# naked-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: order-service-pod
+  labels:
+    app: order-service
+spec:
+  containers:
+  - name: order-service
+    image: nginx:1.25
+    ports:
+    - containerPort: 8080

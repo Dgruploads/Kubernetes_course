@@ -1,0 +1,45 @@
+# product-catalogue-rs.yaml
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: product-catalogue-rs
+  labels:
+    app: product-catalogue
+    team: platform
+    environment: production
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: product-catalogue   # Must match template labels below
+  template:
+    metadata:
+      labels:
+        app: product-catalogue  # MUST match selector above
+        tier: backend
+        version: "2.1"
+    spec:
+      containers:
+      - name: catalogue-api
+        image: nginx:1.25       # Represents our catalogue service
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: "100m"         # 0.1 CPU core guaranteed
+            memory: "128Mi"     # 128 MB RAM guaranteed
+          limits:
+            cpu: "300m"         # Never use more than 0.3 cores
+            memory: "256Mi"     # Never use more than 256 MB
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 20

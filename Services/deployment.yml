@@ -1,0 +1,81 @@
+# payment-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  labels:
+    app: payment-service
+    team: payments
+    environment: production
+spec:
+
+  # ── 1. Desired number of running Pods ──────────────────────────
+  replicas: 3
+
+  # ── 2. How the Deployment (and its RS) finds its Pods ──────────
+  selector:
+    matchLabels:
+      app: payment-service
+
+  # ── 3. Update strategy ─────────────────────────────────────────
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # Allow 1 extra Pod above desired during update
+      maxUnavailable: 0  # Never go below desired count during update
+
+  # Keep the last 5 ReplicaSets for rollback history
+  revisionHistoryLimit: 5
+
+  # ── 4. Pod blueprint ───────────────────────────────────────────
+  template:
+    metadata:
+      labels:
+        app: payment-service      # Must match selector
+        tier: backend
+        version: "3.1"
+    spec:
+      containers:
+        - name: payment-api
+          image: stefanprodan/podinfo:6.5.4       # Represents payment-service:3.1
+          ports:
+            - containerPort: 9898
+          resources:
+            requests:
+              cpu: "150m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+          # readinessProbe: Kubernetes won't route traffic until this passes.
+          # Critical for zero-downtime updates — new Pod MUST be ready
+          # before the old one is terminated.
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 9898
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+
+          # livenessProbe: Kubernetes restarts the Pod if this fails.
+          # Catches deadlocks and infinite loops that readiness won't catch.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9898
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            failureThreshold: 3
+
+          # Graceful shutdown: gives in-flight requests time to complete
+          # before the container is forcefully stopped.
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+
+      # Grace period: how long Kubernetes waits after sending SIGTERM
+      # before sending SIGKILL. Must be > preStop sleep.
+      terminationGracePeriodSeconds: 30

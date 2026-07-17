@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: app-configuration-dev
+  name: app-configuration-prod
   namespace: finance
 data:
   LOG_LEVEL: "DEBUG"

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-configuration-dev
+  namespace: finance
+data:
+  LOG_LEVEL: "DEBUG"
+  DATABASE_URL: "jdbc:postgresql://db.prod.internal:5432/orders"
+  ui.properties: |
+    theme=dark
+    features.billing=true
+    max.page.size=50

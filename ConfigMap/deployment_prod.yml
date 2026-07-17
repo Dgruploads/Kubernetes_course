@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-processor-prod
+  namespace: finance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: processor-worker-prod
+  template:
+    metadata:
+      labels:
+        app: processor-worker-prod
+    spec:
+      containers:
+      - name: app-container
+        image: nginx:1.25-alpine
+        envFrom:
+        - configMapRef:
+            name: app-configuration-prod
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+      volumes:
+      - name: config-volume
+        configMap:
+          name: app-configuration-prod
+          items:
+          - key: ui.properties
+            path: ui.properties

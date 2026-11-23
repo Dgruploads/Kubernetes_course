@@ -1,0 +1,105 @@
+# ==============================================================================
+# KUBERNETES STATEFULSETS DEMO - COMPLETE COMMAND REFERENCE
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. ENVIRONMENT & STORAGECLASS SETUP
+# ------------------------------------------------------------------------------
+
+# Create a dedicated namespace for the database workload
+kubectl create namespace database
+
+# Create storage class for fast-ssd
+kubectl apply -f sc.yml
+
+# Verify that the StorageClass is available
+kubectl get storageclass
+
+
+# ------------------------------------------------------------------------------
+# 2. DEPLOY HEADLESS SERVICE & STATEFULSET
+# ------------------------------------------------------------------------------
+
+# Apply the Headless Service (clusterIP: None) for stable pod DNS records
+kubectl apply -f headless-service.yml
+
+# Apply the PostgreSQL StatefulSet manifest (3 replicas + volumeClaimTemplates)
+kubectl apply -f postgres-statefulset.yml
+
+# Watch pods spin up sequentially in strict ordinal order (0 -> 1 -> 2)
+# Press Ctrl+C once all 3 pods reach 1/1 Running
+kubectl get pods -n database -l app=postgres -w
+
+
+# ------------------------------------------------------------------------------
+# 3. VERIFY STORAGE & NETWORK IDENTITY (DNS)
+# ------------------------------------------------------------------------------
+
+# List all pods along with their IP addresses and assigned worker nodes
+kubectl get pods -n database -o wide
+
+# Check the dynamically created PersistentVolumeClaims (one per ordinal pod)
+kubectl get pvc -n database
+
+# Check the underlying PersistentVolumes auto-provisioned by the StorageClass
+kubectl get pv
+
+# Verify Headless Service configuration (CLUSTER-IP should be None)
+kubectl get svc -n database
+
+# Verify deterministic DNS resolution for each pod without pulling external images
+kubectl exec -n database postgres-0 -- getent hosts postgres-0.postgres-service.database.svc.cluster.local
+kubectl exec -n database postgres-0 -- getent hosts postgres-1.postgres-service.database.svc.cluster.local
+kubectl exec -n database postgres-0 -- getent hosts postgres-2.postgres-service.database.svc.cluster.local
+
+
+# ------------------------------------------------------------------------------
+# 4. TEST DATA & IDENTITY PERSISTENCE (FAILURE SIMULATION)
+# ------------------------------------------------------------------------------
+
+# Connect to postgres-1, create an 'orders' table, and insert a test record
+kubectl exec -n database postgres-1 -- psql -U admin -d orders_db -c "CREATE TABLE orders (id INT, item TEXT); INSERT INTO orders VALUES (101, 'StatefulSet Persistence Test');"
+
+# Verify the record was written to postgres-1
+kubectl exec -n database postgres-1 -- psql -U admin -d orders_db -c "SELECT * FROM orders;"
+
+# Simulate a pod crash by forcefully deleting postgres-1
+kubectl delete pod postgres-1 -n database
+
+# Watch Kubernetes recreate postgres-1 with the EXACT same ordinal name
+kubectl get pods -n database -o wide
+
+# Confirm postgres-1 reattached to 'data-postgres-1' and preserved the data
+kubectl exec -n database postgres-1 -- psql -U admin -d orders_db -c "SELECT * FROM orders;"
+
+
+# ------------------------------------------------------------------------------
+# 5. TROUBLESHOOTING & INSPECTION COMMANDS
+# ------------------------------------------------------------------------------
+
+# Check recent events in the database namespace if a pod is stuck Pending
+kubectl get events -n database --sort-by='.lastTimestamp'
+
+# Inspect PVC status and binding events if storage fails to provision
+kubectl describe pvc data-postgres-0 -n database
+
+# Inspect pod logs if PostgreSQL fails to initialize
+kubectl logs -n database postgres-0
+
+
+# ------------------------------------------------------------------------------
+# 6. CLEANUP (POST-DEMO)
+# ------------------------------------------------------------------------------
+
+# Delete the StatefulSet (terminates pods in reverse order: 2 -> 1 -> 0)
+kubectl delete statefulset postgres -n database
+
+# Delete the Headless Service
+kubectl delete svc postgres-service -n database
+
+# Explicitly delete PVCs (StatefulSets retain PVCs by default for data safety)
+kubectl delete pvc -l app=postgres -n database
+
+# Delete the namespace and custom StorageClass
+kubectl delete namespace database
+kubectl delete storageclass fast-ssd

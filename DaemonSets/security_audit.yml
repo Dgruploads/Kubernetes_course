@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: host-security-watcher
+  namespace: security
+spec:
+  selector:
+    matchLabels:
+      app: host-security-watcher
+  template:
+    metadata:
+      labels:
+        app: host-security-watcher
+    spec:
+      tolerations:
+        - operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: audit-agent
+          image: alpine:3.20
+          command:
+            - sh
+            - -c
+            - |
+              echo "Security agent active on node: $NODE_NAME"
+              while true; do
+                ls -la /host-etc/passwd /host-etc/shadow 2>/dev/null | head -n 2
+                sleep 60
+              done
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: host-etc
+              mountPath: /host-etc
+              readOnly: true
+      volumes:
+        - name: host-etc
+          hostPath:
+            path: /etc
